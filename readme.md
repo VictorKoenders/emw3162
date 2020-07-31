@@ -1,0 +1,1 @@
+chip: STM32F205RG

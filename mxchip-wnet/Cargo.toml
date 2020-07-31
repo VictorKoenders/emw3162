@@ -1,0 +1,14 @@
+[package]
+name = "mxchip-wnet"
+version = "0.1.0"
+authors = ["Trangar <victor.koenders@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+mxchip-wnet-sys = { path = "mxchip-wnet-sys" }
+
+[dependencies.cstr_core]
+git = "https://github.com/victorkoenders/cstr_core"
+default-features = false
