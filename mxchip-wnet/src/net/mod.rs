@@ -1,3 +1,5 @@
+//! Networking library. Designed to be as close to the `std::net` library as possible.
+
 use mxchip_wnet_sys as sys;
 
 mod error;
@@ -16,11 +18,11 @@ pub(self) enum Domain {
 #[repr(u32)]
 pub(self) enum SocketType {
     Stream = sys::SOCK_STREAM,
-    DGrm = sys::SOCK_DGRM,
+    // DGrm = sys::SOCK_DGRM,
 }
 
 #[repr(u32)]
 pub(self) enum Protocol {
     Tcp = sys::IPPROTO_TCP,
-    Udp = sys::IPPROTO_UDP,
+    // Udp = sys::IPPROTO_UDP,
 }

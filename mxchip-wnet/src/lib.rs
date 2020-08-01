@@ -1,4 +1,15 @@
+//! Experimental support for an MXCHIP compatible module.
+//!
+//! Written for use with an [EMW3162](https://www.seeedstudio.com/EMW3162-WiFi-Module-p-2122.html) module.
+//! This is being linked to a closed-source library they offer.
+//!
+//! Very experimental! Use at own risk
+//!
+//! Currently this does not compile with `cargo build`. Please use `cargo xbuild` instead.
+
 #![no_std]
+#![warn(missing_docs)]
+#![feature(slice_fill)]
 
 pub mod net;
 pub use cstr_core::{CStr, FromBytesWithNulError};
@@ -11,14 +22,24 @@ pub use sys::_adv_ap_info as ApInfo;
 pub use sys::_net_para as NetParameter;
 pub use sys::_network_InitTypeDef_st as NetworkInfo;
 
+/// Callback that gets called from the easylink module
 pub type EasylinkUserDataCallback = &'static dyn Fn(&str);
+/// Callback when the network info changes.
 pub type RptConfigmodeCallback = &'static dyn Fn(&NetworkInfo);
+/// Callback whichs gets called whenever the system connects to an access point
 pub type ConnectedApInfoCallback = &'static dyn Fn(&ApInfo, &str);
+/// Callback which gets called when a TcpStream connects and the system is in async mode.
 pub type SocketHandler = &'static dyn Fn(TcpStream);
+/// Callback which gets called when the wifi status changes.
+/// `Ok(())` indicates that the wifi connection is working properly.
+/// `Err(...)` indicates the wifi is not connected.
 pub type StatusCallback = &'static dyn Fn(Result<(), StatusError>);
+/// Callback which gets called when an async AP scan is started.
 pub type ApListCallback = &'static dyn Fn(&[ApEntry]);
+/// Callback which gets called when the DHCP value is changed, e.g. by changing IP address
 pub type NetCallback = &'static dyn Fn(&NetParameter);
 
+/// Reference to the inited MxChip library
 pub struct MxChip {}
 
 impl MxChip {
@@ -30,25 +51,66 @@ impl MxChip {
     }
 
     /// Get the version of the MXChip
-    pub fn version() -> &'static str {
+    pub fn version() -> &'static CStr {
         unsafe {
             let ptr = sys::system_lib_version() as *const u8;
-            let len = {
-                let mut cur = ptr;
-                while *cur != b'\0' {
-                    cur = cur.offset(1);
-                }
-                (cur as usize) - (ptr as usize)
-            };
-
-            let slice = core::slice::from_raw_parts(ptr, len);
-            core::str::from_utf8_unchecked(slice)
+            CStr::from_ptr(ptr)
         }
     }
 
+    /// Set the global easylink user data callback. Returns a previous handler if this has been set.
+    pub fn easylink_user_data_callback(
+        cb: EasylinkUserDataCallback,
+    ) -> Option<EasylinkUserDataCallback> {
+        unsafe { core::mem::replace(&mut EASYLINK_USER_DATA_CALLBACK, Some(cb)) }
+    }
+
+    /// Set the global RPT configmode callback. Returns a previous handler if this has been set.
+    ///
+    /// This returns the [NetworkInfo] when a network connection is established
+    pub fn rpt_configmode_callback(cb: RptConfigmodeCallback) -> Option<RptConfigmodeCallback> {
+        unsafe { core::mem::replace(&mut RPT_CONFIGMODE_CALLBACK, Some(cb)) }
+    }
+
     /// Set the global status callback. Returns a previous handler if this has been set.
+    ///
+    /// This callback will be called whenever the WIFI status changes.
+    /// `Ok(())` indicates a succesful wifi connection.
+    /// `Err(...)` indicates the system is disconnected.
     pub fn status_callback(cb: StatusCallback) -> Option<StatusCallback> {
         unsafe { core::mem::replace(&mut WIFI_STATUS_HANDLER, Some(cb)) }
+    }
+
+    /// Set the global connected API info callback. Returns a previous handler if this has been set.
+    pub fn connected_ap_info_callback(
+        cb: ConnectedApInfoCallback,
+    ) -> Option<ConnectedApInfoCallback> {
+        unsafe { core::mem::replace(&mut CONNECTED_AP_INFO_HANDLER, Some(cb)) }
+    }
+
+    /// Set the global AP list callback. Returns a previous handler if this has been set.
+    pub fn ap_list_callback(cb: ApListCallback) -> Option<ApListCallback> {
+        unsafe { core::mem::replace(&mut AP_LIST_CALLBACK, Some(cb)) }
+    }
+
+    /// Set the global socket connected callback. Returns a previous handler if this has been set.
+    ///
+    /// This gets called when a client [TcpStream] connects.
+    /// This will only get called when the MxChip(?)/TcpListener(?) is configured as unblock mode.
+    pub fn socket_connected_callback(cb: SocketHandler) -> Option<SocketHandler> {
+        unsafe { core::mem::replace(&mut SOCKET_CONNECTED_HANDLER, Some(cb)) }
+    }
+
+    /// Set the global NET callback. Returns a previous handler if this has been set.
+    ///
+    /// This gets called when a DHCP request is finished
+    pub fn net_callback(cb: NetCallback) -> Option<NetCallback> {
+        unsafe { core::mem::replace(&mut NET_CALLBACK, Some(cb)) }
+    }
+
+    /// Set the APP version string. This is used by mxchip to construct [version](#method.version)
+    pub fn app_version(version: &'static str) {
+        unsafe { APP_VERSION = version };
     }
 
     /// Turn this chip into a wifi client and connect to the given SSID and password.
@@ -110,16 +172,26 @@ fn strcpy(slice: &mut [i8], str: &str) {
     }
 }
 
+/// Generic status error. This is very experimental and may be split up in other enums in the future. Some status codes don't seem to be errors.
 #[derive(Debug)]
 pub enum StatusError {
+    /// Request failed
     Failed,
+    /// Uap is up
     UapUp,
+    /// Wifi is up
     WifiUp,
+    /// Uap is down
     UapDown,
+    /// Wifi is down
     WifiDown,
+    /// Illegal system call
     SysIllegal,
+    /// 8782 init failed
     InitFailed8782,
+    /// Could not join to the wifi network
     WifiJoinFailed,
+    /// Unknown error. Please report this number to the maintainers of this crate.
     Unknown(i32),
 }
 
@@ -153,6 +225,7 @@ mod emw_callbacks {
         len: sys::ffi::c_int,
     ) {
         let mut slice = core::slice::from_raw_parts_mut(app_version, len as usize);
+        slice.fill(0); // make sure the slice is zeroed. It probably already is but this can't hurt
         strcpy(&mut slice, APP_VERSION);
     }
 

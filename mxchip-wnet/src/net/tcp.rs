@@ -2,6 +2,9 @@ use super::{Error, ToSocketAddr};
 use crate::MxChip;
 use mxchip_wnet_sys as sys;
 
+/// A TCP stream. Designed to be as close to `std::net::TcpStream` as possible.
+///
+/// Connect to a removte server by calling [connect](#method.connect). A valid reference to [MxChip] is required to make sure the system is properly inited.
 pub struct TcpStream {
     sockfd: i32,
 }
@@ -11,10 +14,12 @@ impl TcpStream {
         Self { sockfd }
     }
 
+    /// Get the transfer buffer size.
     pub fn tx_buf_size(&self) -> usize {
         unsafe { sys::tx_buf_size(self.sockfd) as usize }
     }
 
+    /// Connect to a remote server. A valid reference to [MxChip] is required to make sure the system is properly inited.
     pub fn connect(_chip: &MxChip, addr: impl ToSocketAddr, port: u16) -> super::Result<Self> {
         let sockfd = unsafe {
             sys::socket(

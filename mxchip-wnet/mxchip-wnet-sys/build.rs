@@ -11,12 +11,7 @@ fn main() {
 
     std::fs::copy(
         "native/mxchipWNet_3162.lib",
-        format!("{}/mxchipWNet_3162.lib", out_path),
-    )
-    .unwrap();
-    std::fs::copy(
-        "native/mxchipWNet_3162.lib",
-        format!("{}/libmxchipWNet_3162.lib", out_path),
+        format!("{}/libmxchipWNet_3162.a", out_path),
     )
     .unwrap();
 

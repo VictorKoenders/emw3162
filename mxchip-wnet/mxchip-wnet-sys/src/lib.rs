@@ -1,7 +1,10 @@
+//! System bindings to the mxchip WNET library. These are auto generated.
+//!
+//! Currently this does not compile with `cargo build`. Please use `cargo xbuild` instead.
+
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
-
 #![no_std]
 
 pub mod ffi {
@@ -17,4 +20,3 @@ pub mod ffi {
 }
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
-

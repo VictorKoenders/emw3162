@@ -10,5 +10,5 @@ edition = "2018"
 mxchip-wnet-sys = { path = "mxchip-wnet-sys" }
 
 [dependencies.cstr_core]
-git = "https://github.com/victorkoenders/cstr_core"
+version = "0.2"
 default-features = false
